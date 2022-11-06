@@ -1,31 +1,20 @@
 package am.rgaripov.sd.refactoring;
 
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
+import am.rgaripov.sd.refactoring.repository.ProductRepository;
 import am.rgaripov.sd.refactoring.servlet.AddProductServlet;
 import am.rgaripov.sd.refactoring.servlet.GetProductsServlet;
 import am.rgaripov.sd.refactoring.servlet.QueryServlet;
-
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.Statement;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
 
 /**
  * @author akirakozov
  */
 public class Main {
     public static void main(String[] args) throws Exception {
-        try (Connection c = DriverManager.getConnection("jdbc:sqlite:test.db")) {
-            String sql = "CREATE TABLE IF NOT EXISTS PRODUCT" +
-                    "(ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," +
-                    " NAME           TEXT    NOT NULL, " +
-                    " PRICE          INT     NOT NULL)";
-            Statement stmt = c.createStatement();
-
-            stmt.executeUpdate(sql);
-            stmt.close();
-        }
+        ProductRepository repo = new ProductRepository("jdbc:sqlite:test.db");
+        repo.initDB();
 
         Server server = new Server(8081);
 
@@ -33,9 +22,9 @@ public class Main {
         context.setContextPath("/");
         server.setHandler(context);
 
-        context.addServlet(new ServletHolder(new AddProductServlet()), "/add-product");
-        context.addServlet(new ServletHolder(new GetProductsServlet()),"/get-products");
-        context.addServlet(new ServletHolder(new QueryServlet()),"/query");
+        context.addServlet(new ServletHolder(new AddProductServlet(repo)), "/add-product");
+        context.addServlet(new ServletHolder(new GetProductsServlet(repo)),"/get-products");
+        context.addServlet(new ServletHolder(new QueryServlet(repo)),"/query");
 
         server.start();
         server.join();

@@ -1,5 +1,7 @@
 package am.rgaripov.sd.refactoring.servlet;
 
+import am.rgaripov.sd.refactoring.model.Product;
+import am.rgaripov.sd.refactoring.repository.ProductRepository;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -11,55 +13,31 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Collections;
 import java.util.Map;
-import java.util.TreeMap;
 
 import static org.mockito.Mockito.when;
 
 public class ServletTest {
 
-    AddProductServlet addProductServlet = new AddProductServlet();
-    GetProductsServlet getProductsServlet = new GetProductsServlet();
-    QueryServlet queryServlet = new QueryServlet();
+    private static final ProductRepository productRepository = new ProductRepository("jdbc:sqlite:test.db");
+    private static final AddProductServlet addProductServlet = new AddProductServlet(productRepository);
+    private static final GetProductsServlet getProductsServlet = new GetProductsServlet(productRepository);
+    private static final QueryServlet queryServlet = new QueryServlet(productRepository);
 
     @Before
     public void initAndFillDB() {
-        try (Connection c = DriverManager.getConnection("jdbc:sqlite:test.db")) {
-            String sql = "CREATE TABLE IF NOT EXISTS PRODUCT" +
-                    "(ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," +
-                    " NAME           TEXT    NOT NULL, " +
-                    " PRICE          INT     NOT NULL)";
-            Statement stmt = c.createStatement();
-
-            stmt.executeUpdate(sql);
-            stmt.close();
+        try {
+            productRepository.initDB();
+            productRepository.insert(new Product("Coca Cola", 50));
+            productRepository.insert(new Product("Doritos", 40));
+            productRepository.insert(new Product("Cookie", 30));
+            productRepository.insert(new Product("Milk", 20));
+            productRepository.insert(new Product("Meat", 10));
+            productRepository.insert(new Product("Fish", 0));
         } catch (SQLException e) {
-            System.err.println(e.getMessage());
-        }
-        try (Connection c = DriverManager.getConnection("jdbc:sqlite:test.db")) {
-            Map<String, Integer> map =
-                    new TreeMap(Map.of("Fish", 0,
-                            "Meat", 10,
-                            "Milk", 20,
-                            "Cookie", 30,
-                            "Doritos", 40,
-                            "Coca Cola", 50));
-            for (Map.Entry<String, Integer> entry : map.entrySet()) {
-                String name = entry.getKey();
-                Integer price = entry.getValue();
-                String sql = "INSERT INTO PRODUCT " +
-                        "(NAME, PRICE) VALUES (\"" + name + "\"," + price + ")";
-                Statement stmt = c.createStatement();
-                stmt.executeUpdate(sql);
-                stmt.close();
-            }
-        } catch (SQLException e) {
-            System.err.println(e.getMessage());
+            throw new RuntimeException(e);
         }
     }
 
@@ -67,11 +45,11 @@ public class ServletTest {
     public void simpleTest() {
         checkGetProductsServlet("<html><body>\n" +
                 "Coca Cola\t50</br>\n" +
-                "Cookie\t30</br>\n" +
                 "Doritos\t40</br>\n" +
-                "Fish\t0</br>\n" +
-                "Meat\t10</br>\n" +
+                "Cookie\t30</br>\n" +
                 "Milk\t20</br>\n" +
+                "Meat\t10</br>\n" +
+                "Fish\t0</br>\n" +
                 "</body></html>");
     }
 
@@ -82,11 +60,11 @@ public class ServletTest {
         checkAddProductServlet("Z", 300);
         checkGetProductsServlet("<html><body>\n" +
                 "Coca Cola\t50</br>\n" +
-                "Cookie\t30</br>\n" +
                 "Doritos\t40</br>\n" +
-                "Fish\t0</br>\n" +
-                "Meat\t10</br>\n" +
+                "Cookie\t30</br>\n" +
                 "Milk\t20</br>\n" +
+                "Meat\t10</br>\n" +
+                "Fish\t0</br>\n" +
                 "X\t100</br>\n" +
                 "Y\t200</br>\n" +
                 "Z\t300</br>\n" +
@@ -134,21 +112,21 @@ public class ServletTest {
         checkAddProductServlet("X", 100);
         checkGetProductsServlet("<html><body>\n" +
                 "Coca Cola\t50</br>\n" +
-                "Cookie\t30</br>\n" +
                 "Doritos\t40</br>\n" +
-                "Fish\t0</br>\n" +
-                "Meat\t10</br>\n" +
+                "Cookie\t30</br>\n" +
                 "Milk\t20</br>\n" +
+                "Meat\t10</br>\n" +
+                "Fish\t0</br>\n" +
                 "X\t100</br>\n" +
                 "</body></html>");
         checkAddProductServlet("Y", 200);
         checkGetProductsServlet("<html><body>\n" +
                 "Coca Cola\t50</br>\n" +
-                "Cookie\t30</br>\n" +
                 "Doritos\t40</br>\n" +
-                "Fish\t0</br>\n" +
-                "Meat\t10</br>\n" +
+                "Cookie\t30</br>\n" +
                 "Milk\t20</br>\n" +
+                "Meat\t10</br>\n" +
+                "Fish\t0</br>\n" +
                 "X\t100</br>\n" +
                 "Y\t200</br>\n" +
                 "</body></html>");
@@ -159,11 +137,11 @@ public class ServletTest {
         checkAddProductServlet("Z", 300);
         checkGetProductsServlet("<html><body>\n" +
                 "Coca Cola\t50</br>\n" +
-                "Cookie\t30</br>\n" +
                 "Doritos\t40</br>\n" +
-                "Fish\t0</br>\n" +
-                "Meat\t10</br>\n" +
+                "Cookie\t30</br>\n" +
                 "Milk\t20</br>\n" +
+                "Meat\t10</br>\n" +
+                "Fish\t0</br>\n" +
                 "X\t100</br>\n" +
                 "Y\t200</br>\n" +
                 "Z\t300</br>\n" +
@@ -238,13 +216,8 @@ public class ServletTest {
     @After
     public void clearDB() {
         try {
-            try (Connection c = DriverManager.getConnection("jdbc:sqlite:test.db")) {
-                String sql = "DROP TABLE PRODUCT";
-                Statement stmt = c.createStatement();
-                stmt.executeUpdate(sql);
-                stmt.close();
-            }
-        } catch (Exception e) {
+            productRepository.dropDB();
+        } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
