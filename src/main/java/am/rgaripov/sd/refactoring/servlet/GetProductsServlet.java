@@ -2,12 +2,12 @@ package am.rgaripov.sd.refactoring.servlet;
 
 import am.rgaripov.sd.refactoring.model.Product;
 import am.rgaripov.sd.refactoring.repository.ProductRepository;
+import am.rgaripov.sd.refactoring.response.HttpResponseBuilder;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.List;
 
 /**
@@ -23,17 +23,17 @@ public class GetProductsServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        HttpResponseBuilder builder = new HttpResponseBuilder();
         try {
             List<Product> result = productRepository.selectAll();
-            response.getWriter().println("<html><body>");
-            PrintWriter writer = response.getWriter();
-            result.forEach((x -> writer.println(x.getName() + "\t" + x.getPrice() + "</br>")));
-            response.getWriter().println("</body></html>");
+            result.forEach((x -> builder.str(x.getName())
+                                        .tab()
+                                        .str(x.getPrice())
+                                        .br()
+                                        .newLine()));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-
-        response.setContentType("text/html");
-        response.setStatus(HttpServletResponse.SC_OK);
+        builder.build(response);
     }
 }
